@@ -1,3 +1,6 @@
+#include "board.c"
+#include "game.c"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -14,135 +17,8 @@
 // #define f 5
 // #define g 6
 // #define h 7
-#define ROWS 8
-#define COLS 8
-
-struct State {
-  char board[ROWS][COLS];
-  char current_turn;
-  char castling_availability[4];
-  char en_passant_target[2];
-  int halfmove_clock;
-  int fullmove_clock;
-  char fen[FEN_MAX];
-};
-
-/* I need this function because the way we look at the board is exactly the
- * opposite and not 0 indexed as the array holding game state is */
-int translate_rank(char rank) {
-  switch (rank) {
-    case '8':
-      return 0;
-    case '7':
-      return 1;
-    case '6':
-      return 2;
-    case '5':
-      return 3;
-    case '4':
-      return 4;
-    case '3':
-      return 5;
-    case '2':
-      return 6;
-    case '1':
-      return 7;
-    default:
-      fprintf(stderr,
-              "error translating rank of a move from char to the corresponding "
-              "numerical rank -> %c",
-              rank);
-      abort();
-  }
-}
 
 
-int translate_file(char file) {
-  switch (file) {
-    case 'a':
-      return 0;
-    case 'b':
-      return 1;
-    case 'c':
-      return 2;
-    case 'd':
-      return 3;
-    case 'e':
-      return 4;
-    case 'f':
-      return 5;
-    case 'g':
-      return 6;
-    case 'h':
-      return 7;
-    default:
-      fprintf(stderr,
-              "error translating file of a move from char to the corresponding "
-              "numerical file -> %c",
-              file);
-      abort();
-  }
-}
-
-// 
-char* find_square_name(int rank, int file) {
-  char *square_name = "";
-  // rank
-  switch (rank) {
-    case '0':
-      square_name[0] = '8';
-      break;
-    case '1':
-      square_name[0] = '7';
-      break;
-    case '2':
-      square_name[0] = '6';
-      break;
-    case '3':
-      square_name[0] = '5';
-      break;
-    case '4':
-      square_name[0] = '4';
-      break;
-    case '5':
-      square_name[0] = '3';
-      break;
-    case '6':
-      square_name[0] = '2';
-      break;
-    case '7':
-      square_name[0] = '1';
-      break;
-  }
-
-  switch (file) {
-    case '0':
-      square_name[1] = 'a';
-      break;
-    case '1':
-      square_name[1] = 'b';
-      break;
-    case '2':
-      square_name[1] = 'c';
-      break;
-    case '3':
-      square_name[1] = 'd';
-      break;
-    case '4':
-      square_name[1] = 'e';
-      break;
-    case '5':
-      square_name[1] = 'f';
-      break;
-    case '6':
-      square_name[1] = 'g';
-      break;
-    case '7':
-      square_name[1] = 'h';
-      break;
-  }
-  return square_name;
-}
 
 
 void horizontal_separator() {
@@ -175,15 +51,6 @@ void listen() {
   return;
 }
 
-// Verify that the move is at least valid in the sense that it could happen independant
-// of the actual current board state.
-// Ex. a4 is a valid move because it's a pawn move on the a file to the 4th rank.
-// but z32 is not valid because it does not exist. this will require parsing of the 
-// piece specified (sometimes by the piece name like n for night or r for rook but sometimes rac5
-// for the rook on the a file to c5) if required, pawns do not need it. if a piece is taken
-// if check or mate occurs, if a piece is taken, etc.
-//void parse_move() {
-//}
 
 // function called to move a piece from starting to ending square. This should be called
 // after the verification of if it's a legal move takes place. That will be in the game
@@ -306,30 +173,99 @@ char* check_and_find_en_passant(struct State state, char *pawn_move) {
  *  What would parsing the move in a separate function give us? 
  *
  */
-char* parse_move(char *move) {
+struct Move parse_move(char *move, char turn) {
   // options: 1. pawn move, just target square, must look for pawn in same rank and then move
   //          2. specified piece then target square
   //          3. specified piece with extra starting position identifier if 2 of the same piece could be the specified one.
   //          4. piece takes another piece (could also have extra specification)
   //          5. check
   //          6. checkmate
+  struct Move current_move;
 
-  int index = 0;
-  char curr = move[index];
-  while(curr != '\0') {
+  if(strcmp(move, "O-O") == 0 || strcmp(move, "O-O-O") == 0) {
+    current_move.is_castles = true;
 
+    // provide info on if it's short or long castle
+    if(strcmp(move, "O-O") == 0) {
+      current_move.castles_short = true;
+    } else {
+      current_move.castles_short = false;
+    }
+
+    // provide turn information to help with validation and actual movement.
+    if(turn == 'w') {
+      current_move.piece = 'K';
+    } else {
+      current_move.piece = 'k'; // TODO - do I need to specify upper/lowercase
+    }
+    // castling is a special case that will require a separate path for handling
+    return current_move;
   }
 
-  return "";
+
+
+  return current_move;
 }
+
+// TODO - impliment verification of castling
+// 1. check if state says castling availability is there for type of castling
+// requested
+// 2. check if any pieces are in between the king and rook
+// 3. check if castling would put king in check in any of those positions the
+// king would move across. This should be outsourced to another function TODO
+bool validate_castles(char piece, bool is_short_castle, char state_castling_availability[]) {
+
+  return false;
+}
+
+
+// TODO - I can factor this into actually changing the move to always placing a space where
+// the move started and placing the piece I find at the board state in the location of the end space
+void change_board_state(struct State state, char start_rank, char start_file, char end_rank, char end_file) {
+  char piece = state.board[translate_rank(start_rank)][translate_file(start_file)];
+
+  state.board[translate_rank(start_rank)][translate_file(start_file)] = ' ';
+  state.board[translate_rank(end_rank)][translate_file(end_file)] = piece;
+  return;
+}
+
 
 /*
  * take a parsed move and iterate through it to update game state correctly
  * NOTE: updates State parameter directly and returns nothing
  */
-void make_move(struct State state, char *move_parsed) {
+bool make_move(struct State state, struct Move move) {
+  if (move.is_castles) {
+    bool castle_is_legal = validate_castles(move.piece, move.castles_short, state.castling_availability);
+    if (castle_is_legal) {
+      if(move.piece == 'k') {
+        if (move.castles_short) {
+          change_board_state(state,'8','e','8', 'g');
+          change_board_state(state,'8','h','8', 'f');
+          return true;
+        } else {
+          change_board_state(state,'8','e','8', 'c');
+          change_board_state(state,'8','a','8', 'd');
+          return true;
+        }
+      } else {
+        if (move.castles_short) {
+          change_board_state(state,'1','e','1', 'g');
+          change_board_state(state,'1','h','1', 'f');
+          return true;
+        } else {
+          change_board_state(state,'1','e','1', 'c');
+          change_board_state(state,'1','a','1', 'd');
+          return true;
+        }
+      }
+    } else {
+      fprintf(stderr, "tried to castle with move and castling not allowed, try again!");
+      return false;
+    }
+  }
 
-
+  return true;
 }
 
 
@@ -341,7 +277,7 @@ struct State build_state_from_fen(char fen[FEN_MAX]) {
   // printf("new_state.fen sizeof strlen: %d\n", (int) strlen(new_state.fen));
   // printf("build_state_from_fen strncpy result: %s\n", new_state.fen);
 
-  char *token = strtok(fen, " "); // split fen by space, first run gets board string
+  char *token = strtok(fen, " ");
   // printf("board string taken from strtok: %s\n", token);
   char board_string[64]= "";
   int temp_num = 0;
@@ -360,10 +296,8 @@ struct State build_state_from_fen(char fen[FEN_MAX]) {
       board_string[i_board++] = token[i];
     }
   }
-  // printf("board string: %s\n", board_string);
   build_board_array(board_string, new_state.board);
 
-  //
   token = strtok(NULL, " ");
   new_state.current_turn = *token;
 
