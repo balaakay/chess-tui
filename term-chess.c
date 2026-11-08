@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stddef.h>
 
 #define FEN_MAX 95
 // the columns that I want to reference
@@ -23,8 +24,125 @@ struct State {
   char en_passant_target[2];
   int halfmove_clock;
   int fullmove_clock;
-  char fen[95];
+  char fen[FEN_MAX];
 };
+
+/* I need this function because the way we look at the board is exactly the
+ * opposite and not 0 indexed as the array holding game state is */
+int translate_rank(char rank) {
+  switch (rank) {
+    case '8':
+      return 0;
+    case '7':
+      return 1;
+    case '6':
+      return 2;
+    case '5':
+      return 3;
+    case '4':
+      return 4;
+    case '3':
+      return 5;
+    case '2':
+      return 6;
+    case '1':
+      return 7;
+    default:
+      fprintf(stderr,
+              "error translating rank of a move from char to the corresponding "
+              "numerical rank -> %c",
+              rank);
+      abort();
+  }
+}
+
+
+int translate_file(char file) {
+  switch (file) {
+    case 'a':
+      return 0;
+    case 'b':
+      return 1;
+    case 'c':
+      return 2;
+    case 'd':
+      return 3;
+    case 'e':
+      return 4;
+    case 'f':
+      return 5;
+    case 'g':
+      return 6;
+    case 'h':
+      return 7;
+    default:
+      fprintf(stderr,
+              "error translating file of a move from char to the corresponding "
+              "numerical file -> %c",
+              file);
+      abort();
+  }
+}
+
+// 
+char* find_square_name(int rank, int file) {
+  char *square_name = "";
+  // rank
+  switch (rank) {
+    case '0':
+      square_name[0] = '8';
+      break;
+    case '1':
+      square_name[0] = '7';
+      break;
+    case '2':
+      square_name[0] = '6';
+      break;
+    case '3':
+      square_name[0] = '5';
+      break;
+    case '4':
+      square_name[0] = '4';
+      break;
+    case '5':
+      square_name[0] = '3';
+      break;
+    case '6':
+      square_name[0] = '2';
+      break;
+    case '7':
+      square_name[0] = '1';
+      break;
+  }
+
+  switch (file) {
+    case '0':
+      square_name[1] = 'a';
+      break;
+    case '1':
+      square_name[1] = 'b';
+      break;
+    case '2':
+      square_name[1] = 'c';
+      break;
+    case '3':
+      square_name[1] = 'd';
+      break;
+    case '4':
+      square_name[1] = 'e';
+      break;
+    case '5':
+      square_name[1] = 'f';
+      break;
+    case '6':
+      square_name[1] = 'g';
+      break;
+    case '7':
+      square_name[1] = 'h';
+      break;
+  }
+  return square_name;
+}
 
 
 void horizontal_separator() {
@@ -132,14 +250,6 @@ char* generate_FEN(struct State state) {
 }
 
 
-// TODO
-char* generate_board_state_for_FEN(char m[ROWS][COLS]) {
-
-  char *s = "";
-  return s;
-}
-
-
 void build_board_array(char *board_string, char board[8][8]) {
   int string_index = 0;
   for(int i = 0; i < 8; i++) {
@@ -156,10 +266,76 @@ void build_board_array(char *board_string, char board[8][8]) {
 
 }
 
+/* This function is for finding the actual squares that en_passant_target could
+ * identify in the fen string. 
+ * NOTE: this function assumes the move passed is a pawn move without capture */
+char* check_and_find_en_passant(struct State state, char *pawn_move) {
+  // Just find out if this move if a 2 space pawn move:
+  // if yes -> return square name of the square skipped, (if black, [a-h]6; if
+  //    white [a-h]3; take the first character of move for [a-h])
+  // if no -> return "-"
+  int file = translate_file(*pawn_move);
+  int rank = translate_rank(*(pawn_move + 1));
+  int conditional_black_rank = translate_rank('5');
+  int conditional_white_rank = translate_rank('4');
+
+  // check black pawn move (top so check first)
+  if(rank == conditional_black_rank) {
+    // check if the pawn moving to this rank is on file 6 or 7
+    if(state.board[rank-1][file] == 'p') {
+      return "-";
+    } else {
+      return find_square_name(rank-1, file);
+    }
+  }
+
+  // check white pawn move
+  if(rank == conditional_white_rank) {
+    if(state.board[rank+1][file] == 'P') {
+      return "-";
+    } else {
+      return find_square_name(rank + 1, file);
+    }
+  }
+  unreachable();
+}
+
+
+/*
+ *  Why do we need to parse the move if we are taking a char * and returning char *?
+ *  What would parsing the move in a separate function give us? 
+ *
+ */
+char* parse_move(char *move) {
+  // options: 1. pawn move, just target square, must look for pawn in same rank and then move
+  //          2. specified piece then target square
+  //          3. specified piece with extra starting position identifier if 2 of the same piece could be the specified one.
+  //          4. piece takes another piece (could also have extra specification)
+  //          5. check
+  //          6. checkmate
+
+  int index = 0;
+  char curr = move[index];
+  while(curr != '\0') {
+
+  }
+
+  return "";
+}
+
+/*
+ * take a parsed move and iterate through it to update game state correctly
+ * NOTE: updates State parameter directly and returns nothing
+ */
+void make_move(struct State state, char *move_parsed) {
+
+
+}
+
 
 
 // parse the fen string and create a board state object with all the right states
-struct State build_state_from_fen(char fen[95]) {
+struct State build_state_from_fen(char fen[FEN_MAX]) {
   struct State new_state;
   strcpy(new_state.fen, fen);
   // printf("new_state.fen sizeof strlen: %d\n", (int) strlen(new_state.fen));
@@ -227,8 +403,8 @@ int main() {
     .fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
   };
 
-  char sample_fen[95] =  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 1 100";
-  char fen_arr[10][95] = {
+  char sample_fen[FEN_MAX] =  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 1 100";
+  char fen_arr[10][FEN_MAX] = {
     "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
     "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
     "r2q1rk1/ppp2ppp/2np1n2/2b1p1B1/2B1P1b1/2NP1N2/PPP2PPP/R2Q1RK1 w - - 4 8",
