@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #define FEN_MAX 95
 // the columns that I want to reference
@@ -131,15 +132,78 @@ char* generate_FEN(struct State state) {
 }
 
 
-// char* generate_board_state_for_FEN(char m[ROWS][COLS]) {
-//
-// }
+// TODO
+char* generate_board_state_for_FEN(char m[ROWS][COLS]) {
+
+  char *s = "";
+  return s;
+}
+
+
+void build_board_array(char *board_string, char board[8][8]) {
+  int string_index = 0;
+  for(int i = 0; i < 8; i++) {
+    for(int j = 0; j < 8; j++) {
+      if(board_string[string_index]) {
+        board[i][j] = board_string[string_index];
+        string_index++;
+      } else {
+        fprintf(stderr, "Error with board string to board array parsing...\n");
+        return;
+      }
+    }
+  }
+
+}
 
 
 
 // parse the fen string and create a board state object with all the right states
-void build_state_from_fen(char fen[95]) {
+struct State build_state_from_fen(char fen[95]) {
+  struct State new_state;
+  strcpy(new_state.fen, fen);
+  // printf("new_state.fen sizeof strlen: %d\n", (int) strlen(new_state.fen));
+  // printf("build_state_from_fen strncpy result: %s\n", new_state.fen);
 
+  char *token = strtok(fen, " "); // split fen by space, first run gets board string
+  // printf("board string taken from strtok: %s\n", token);
+  char board_string[64]= "";
+  int temp_num = 0;
+  int i_board = 0;
+  // parse board state
+  for(int i = 0;i < strlen(token); i++) {
+    // if number, iterate that many spaces
+    if( isdigit(token[i]) != 0) {
+      temp_num = atoi(&token[i]);
+      for(int j = 0; j < temp_num; j++) {
+        board_string[i_board++] = ' ';
+      }
+    } else if(token[i] == '/') {
+      continue;
+    } else {
+      board_string[i_board++] = token[i];
+    }
+  }
+  // printf("board string: %s\n", board_string);
+  build_board_array(board_string, new_state.board);
+
+  //
+  token = strtok(NULL, " ");
+  new_state.current_turn = *token;
+
+  token = strtok(NULL, " ");
+  strcpy(new_state.castling_availability, token);
+
+  token = strtok(NULL, " ");
+  strcpy(new_state.en_passant_target, token);
+
+  token = strtok(NULL, " ");
+  new_state.halfmove_clock = atoi(token);
+
+  token = strtok(NULL, " ");
+  new_state.fullmove_clock = atoi(token);
+ 
+  return new_state;
 }
 
 int main() {
@@ -163,9 +227,37 @@ int main() {
     .fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
   };
 
-  draw_board(game_state.board);
-  char *fen = generate_FEN(game_state);
-  printf("Game FEN is: %s\n", fen);
-  free(fen);
+  char sample_fen[95] =  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 1 100";
+  char fen_arr[10][95] = {
+    "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+    "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+    "r2q1rk1/ppp2ppp/2np1n2/2b1p1B1/2B1P1b1/2NP1N2/PPP2PPP/R2Q1RK1 w - - 4 8",
+    "8/5pk1/6p1/7p/7P/6P1/5PK1/8 w - - 0 40",
+    "4k3/8/8/3q4/8/8/3Q4/4K3 w - - 0 1",
+    "r3k2r/pp3ppp/2n1bn2/3pp3/3P4/2P1BN2/PP3PPP/R3K2R w KQkq - 0 12",
+    "2r3k1/5ppp/p3p3/1p6/1P6/P3P1P1/5P1P/2R3K1 b - - 0 28",
+    "8/2k5/8/2P5/8/8/4K3/8 w - - 0 1",
+    "rnbqkb1r/pp2pppp/3p1n2/8/3NP3/8/PPP2PPP/RNBQKB1R w KQkq - 1 5",
+    "6k1/5p2/6p1/8/3R4/6P1/5PK1/3r4 w - - 0 45"
+  };
+
+
+  size_t rows = sizeof(fen_arr) / sizeof(fen_arr[0]);
+  for(int i = 0; i < rows; i++) {
+    struct State sample_state = build_state_from_fen(fen_arr[i]);
+    draw_board(sample_state.board);
+    printf("current turn: %c\n", sample_state.current_turn);
+    printf("castling availability: %s\n", sample_state.castling_availability);
+    printf("en passant targets: %s\n", sample_state.en_passant_target);
+    printf("halfmove clock: %d\n", sample_state.halfmove_clock);
+    printf("fullmove clock: %d\n", sample_state.fullmove_clock);
+  }
+
+  // printf("input FEN is: %s\n", sample_state.fen);
+  // printf("output FEN is: %s\n", generate_FEN(sample_state));
+  // draw_board(game_state.board);
+  // char *fen = generate_FEN(game_state);
+  // printf("Game FEN is: %s\n", fen);
+  // free(fen);
   return 0;
 }
