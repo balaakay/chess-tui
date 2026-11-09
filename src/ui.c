@@ -1,10 +1,13 @@
+#include <stdio.h>
 
+#include "ui.h"
+#include "board.h"
 
-void horizontal_separator() {
+void horizontal_separator(void) {
   printf("+---+---+---+---+---+---+---+---+\n");
 }
 
-void print_legend() {
+void print_legend(void) {
   printf("  a   b   c   d   e   f   g   h\n\n");
 }
 
