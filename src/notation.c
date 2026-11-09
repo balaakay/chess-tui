@@ -1,5 +1,4 @@
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +39,6 @@ int translate_rank(char rank) {
       abort();
   }
 }
-
 
 int translate_file(char file) {
   switch (file) {
